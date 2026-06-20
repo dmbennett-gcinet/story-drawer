@@ -2975,7 +2975,7 @@ document.getElementById("profileForm").addEventListener("submit", function(e){
   lastGenerated = {title:title, text:paragraphs.join("\n\n"), child:profile.child, storyId:story.id, savedAt: now.toISOString()};
 
   try{
-    window.storage.set("last-profile", JSON.stringify(profile), false);
+    localStorage.setItem("last-profile", JSON.stringify(profile));
   }catch(err){ console.error("Could not save last profile", err); }
 
   document.getElementById("storyPageOuter").scrollIntoView({behavior:"smooth", block:"start"});
@@ -2988,17 +2988,13 @@ document.getElementById("anotherBtn").addEventListener("click", function(){
 });
 
 /* ---------- Save to Drawer ---------- */
-document.getElementById("saveBtn").addEventListener("click", async function(){
+document.getElementById("saveBtn").addEventListener("click", function(){
   if(!lastGenerated) return;
   const key = "story:" + Date.now();
   try{
-    const result = await window.storage.set(key, JSON.stringify(lastGenerated), false);
-    if(result){
-      this.textContent = "Saved!";
-      setTimeout(()=>{ this.textContent = "Save to Drawer"; }, 1600);
-    } else {
-      alert("Could not save the story right now. Please try again.");
-    }
+    localStorage.setItem(key, JSON.stringify(lastGenerated));
+    this.textContent = "Saved!";
+    setTimeout(()=>{ this.textContent = "Save to Drawer"; }, 1600);
   }catch(err){
     console.error("Save failed", err);
     alert("Could not save the story right now. Please try again.");
@@ -3006,12 +3002,11 @@ document.getElementById("saveBtn").addEventListener("click", async function(){
 });
 
 /* ---------- Library ---------- */
-async function loadLibrary(){
+function loadLibrary(){
   const grid = document.getElementById("libraryGrid");
   grid.innerHTML = "<p>Loading your drawer&hellip;</p>";
   try{
-    const list = await window.storage.list("story:", false);
-    const keys = (list && list.keys) ? list.keys : [];
+    const keys = Object.keys(localStorage).filter(function(key){ return key.startsWith("story:"); });
     if(keys.length === 0){
       grid.innerHTML = '<div class="lib-empty">No saved stories yet. Write one and press &ldquo;Save to Drawer.&rdquo;</div>';
       return;
@@ -3019,8 +3014,8 @@ async function loadLibrary(){
     const items = [];
     for(const k of keys){
       try{
-        const res = await window.storage.get(k, false);
-        if(res && res.value){ items.push({key:k, data: JSON.parse(res.value)}); }
+        const value = localStorage.getItem(k);
+        if(value){ items.push({key:k, data: JSON.parse(value)}); }
       }catch(err){ /* skip unreadable entries */ }
     }
     items.sort(function(a,b){ return new Date(b.data.savedAt) - new Date(a.data.savedAt); });
@@ -3047,9 +3042,9 @@ async function loadLibrary(){
       const delBtn = document.createElement("button");
       delBtn.textContent = "Delete";
       delBtn.className = "danger";
-      delBtn.addEventListener("click", async function(){
+      delBtn.addEventListener("click", function(){
         try{
-          await window.storage.delete(item.key, false);
+          localStorage.removeItem(item.key);
           loadLibrary();
         }catch(err){ console.error("Delete failed", err); }
       });
@@ -3084,11 +3079,11 @@ document.getElementById("tab-library").addEventListener("click", function(){
 });
 
 /* ---------- Restore last profile on load ---------- */
-(async function(){
+(function(){
   try{
-    const res = await window.storage.get("last-profile", false);
-    if(res && res.value){
-      const p = JSON.parse(res.value);
+    const value = localStorage.getItem("last-profile");
+    if(value){
+      const p = JSON.parse(value);
       if(p.child) document.getElementById("childName").value = p.child;
       if(p.age) document.getElementById("childAge").value = p.age;
       if(p.color) document.getElementById("favColor").value = p.color;
